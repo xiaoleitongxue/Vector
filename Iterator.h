@@ -6,9 +6,7 @@
 #define VECTOR_ITERATOR_H
 
 
-class Iterator {
 
-};
 
 
 #endif //VECTOR_ITERATOR_H

@@ -5,193 +5,92 @@
 #ifndef VECTOR_VECTOR_H
 #define VECTOR_VECTOR_H
 
-#include <initializer_list>
 #include <memory>
-template <typename T>
-class Vector
+
+template<class T, class A = std::allocator<T>>
+struct vector_base
 {
-public:
-    explicit Vector(int s);
+    A alloc;
+    T* elem;
+    T* space;
+    T* last;
 
-    Vector();
+    vector_base(const A& a, typename A::size_type n):alloc{a}, elem{alloc.allocate(n)}, space{elem + n}, last{elem + n}{}
 
-    Vector(std::initializer_list<T>);
+    ~vector_base(){
+        alloc.deallocate(elem, last-elem);
+    }
 
-    void push_back(const T &v);
-
-    void push_back(const T &&v);
-
-    ~Vector() { delete[] elem; }
-
-    T &operator[](int i);
-
-    [[nodiscard]] int size() const;
-
-    [[nodiscard]] int capacity() const;
-
-    void reserve(int new_sz);
-
-    void construct_at(T *space_, const T &t);
-    void construct_at(T *space_, const T &&t);
-
-    // copy constructor
-    Vector(const Vector &);
-    // copy assignment
-    Vector& operator=(const Vector &);
-
-    
-
-private:
-    T *elem;  // pointer to first element
-    T *space; // pointer to first unused slot
-    T *last;  // pointer to last slot
-    int sz;
-    std::allocator<T> alloc;
+    vector_base(const vector_base&) = delete;
+    vector_base& operatr=(const vector_base&) = delete;
+    vector_base(vector_base&&);
+    vector_base& operator=(vector_base&&);
 };
 
-#include <algorithm>
-template <typename T>
-Vector<T>::Vector(std::initializer_list<T> lst) : sz{0}
+
+
+
+
+template <class T, class A = std::allocator<T>>
+class vector
 {
-    alloc = std::allocator<T>();
-    reserve(3);
-    elem = space;
-    // construct
-    for (T i : lst)
-    {
-        construct_at(space, i);
-        ++space;
+    vector_base<T, A> vb;
+    void destroy_elements();
+
+public:
+    using size_type = unsigned int;
+    explicit vector(size_type n, const T &val = T(), const A & = A());
+    
+    vector(const vector &a);
+    vector &operator=(const vector &a);
+
+    vector(vector &&a);
+    vector &operator=(vector &&a);
+
+    ~vector();
+
+    size_type size() const { return space - elem; }
+    size_type capaciity() const { return last - elem; }
+
+    void reserve(size_type n);
+
+    void resize(size_type n, const T & = {});
+    void clear(){resize(0);}
+    void push_back(const T &);
+};
+
+template <class T, class A>
+inline void vector<T, A>::destroy_elements()
+{
+    for(T* p = vb.elem; p != vb.space; ++p){
+        p->~T();
     }
-    sz = static_cast<int>(lst.size());
+    vb.space = vb.elem;
 }
-template <typename T>
-Vector<T>::Vector() : alloc{std::allocator<T>()}, elem{nullptr}, sz{0}
+
+template <class T, class A>
+inline vector<T, A>::vector(size_type n, const T &val, const A &a) : alloc{a}
 {
-    reserve(8);
-    elem = nullptr;
-}
-template <typename T>
-Vector<T>::Vector(int s) : alloc{std::allocator<T>()}
-{
-    reserve(s);
-    elem = space;
-    // construct
-    for (int i = 0; i != s; ++i)
+    elem = alloc.allocate(n);
+    T *p;
+    try
     {
-        construct_at(space, 0);
-        ++space;
-    }
-    sz = s;
-}
-template <typename T>
-void Vector<T>::push_back(const T &d)
-{
-    if (capacity() <= size())
-    {
-        reserve(size() == 0 ? 8 : 2 * size());
-        construct_at(space, d);
-        ++space;
-    }
-    else
-    {
-        construct_at(space, d);
-        ++space;
-    }
-    sz++;
-}
-template <typename T>
-void Vector<T>::push_back(const T &&d)
-{
-    if (capacity() <= size())
-    {
-        reserve(size() == 0 ? 8 : 2 * size());
-        construct_at(space, d);
-        ++space;
-    }
-    else
-    {
-        construct_at(space, d);
-        ++space;
-    }
-    sz++;
-}
-template <typename T>
-int Vector<T>::size() const
-{
-    return sz;
-}
-template <typename T>
-int Vector<T>::capacity() const
-{
-    return (last - elem) / sizeof(T);
-}
-template <typename T>
-T &Vector<T>::operator[](int i)
-{
-    T *p = elem;
-    int j = 0;
-    while (j < i)
-    {
-        ++j;
-        p++;
-    }
-    return *p;
-}
-template <typename T>
-void Vector<T>::reserve(int new_sz)
-{
-    T *p = alloc.allocate(new_sz);
-    if (sz > 0)
-    {
-        T *new_spaces = p;
-        for (int i = 0; i < sz; ++i)
+        T *end = elem + n;
+        for (p = elem; p != end; ++p)
         {
-            construct_at(new_spaces, *(elem + i));
-            new_spaces++;
+            alloc.construct(p, val);
         }
-        alloc.deallocate(elem, capacity());
-        elem = p;
-        space = new_spaces;
-        last = p + new_sz * sizeof(T);
+        last = space = p;
     }
-    else
+    catch (...)
     {
-        space = p;
-        last = p + new_sz * sizeof(T);
+        for (T *q = elem; q != p; ++q)
+        {
+            alloc.destroy(q);
+        }
+        alloc.deallocate(elem, n);
+        throw;
     }
-}
-template <typename T>
-void Vector<T>::construct_at(T *space_, const T &t)
-{
-    alloc.construct(space_, t);
-}
-
-template <typename T>
-void Vector<T>::construct_at(T *space_, const T &&t)
-{
-    alloc.construct(space_, t);
-}
-
-template <typename T>
-Vector<T>::Vector(const Vector &v):sz{v.size()}
-{
-    alloc = std::allocator<T>();
-    reserve(v.size());
-    elem = space;
-    // construct
-//    for (T & i : v)
-//    {
-//        construct_at(space, i);
-//        ++space;
-//    }
-
-}
-
-template <typename T>
-Vector<T>& Vector<T>::operator=(const Vector &v)
-{
-
-    return v;
 }
 
 #endif // VECTOR_VECTOR_H
