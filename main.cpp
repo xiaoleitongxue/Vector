@@ -38,4 +38,8 @@ int main() {
   print_vector(vec);
 
   printf("\n");
+
+
+  vector<int> vec4 = {1, 2, 3, 4};
+  print_vector(vec4);
 }

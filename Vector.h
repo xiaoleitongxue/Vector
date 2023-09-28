@@ -7,10 +7,11 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <initializer_list>
+#include <iostream>
 #include <memory>
 #include <type_traits>
 #include <utility>
-#include <iostream>
 template <class T, class A = std::allocator<T>> struct vector_base {
   A alloc;
   T *elem;
@@ -20,6 +21,8 @@ template <class T, class A = std::allocator<T>> struct vector_base {
   vector_base(const A &a, typename A::size_type n)
       : alloc{a}, elem{alloc.allocate(n)}, space{elem + n}, last{elem + n} {}
 
+  // explicit vector_base(const A &a):alloc(a), elem{alloc.allocate(0)},
+  // space{elem}, last{elem}{}
   ~vector_base() { alloc.deallocate(elem, last - elem); }
 
   vector_base(const vector_base &) = delete;
@@ -51,16 +54,57 @@ inline vector_base<T, A> &vector_base<T, A>::operator=(vector_base &&a) {
   return *this;
 }
 
+template <class T> struct Iterator {
+  T *current_node;
+
+  Iterator(T *p) : current_node{p} {}
+
+  Iterator &operator++() { return Iterator{current_node++}; }
+
+  Iterator operator+(int i) { return Iterator{current_node++}; }
+
+  Iterator operator--() { Iterator{current_node--}; }
+
+  Iterator operator-(int i) { Iterator{current_node--}; }
+
+  bool operator==(Iterator it){
+    if(this->current_node == it.current_node){
+      return true;
+    }
+    return false;
+  }
+
+  Iterator operator=(Iterator& it){
+    current_node = it.current_node;
+  }
+
+  Iterator(const Iterator &it) : current_node(it.current_node){
+
+  }
+
+  Iterator(const Iterator &&it) : current_node(it.current_node){
+    it.current_node = nullptr;
+  }
+
+  Iterator operator=(Iterator&& it){
+    current_node = it.current_node;
+    it.current_node = nullptr;
+  }
+
+
+};
+
 template <class T, class A = std::allocator<T>> class vector {
 public:
   vector_base<T, A> vb;
+  Iterator<T> it;
   void destroy_elements();
   void destroy(T *b, T *e);
 
 public:
   using size_type = unsigned int;
   explicit vector(size_type n, const T &val = T(), const A & = A());
-
+  vector(std::initializer_list<T>);
   vector(const vector &a);
   vector &operator=(const vector &a);
 
@@ -77,12 +121,27 @@ public:
   void resize(size_type n, const T & = {});
   void clear() { resize(0); }
   void push_back(const T &);
+
+  Iterator<T>& begin(){
+    return Iterator<T>{this->vb.elem};
+  }
+
+  Iterator<T>& end(){
+    return Iterator<T>{this->vb.space};
+  }
+
 };
 
 template <class T, class A>
-vector<T, A>::vector(vector &&a) : vb{std::move(a.vb)} {
-
+vector<T, A>::vector(std::initializer_list<T> lst)
+    : vb{std::allocator<T>(), lst.size()} {
+  for (int i = 0; i < lst.size(); ++i) {
+    vb.alloc.construct(vb.elem + i, *(lst.begin() + i));
+  }
 }
+
+template <class T, class A>
+vector<T, A>::vector(vector &&a) : vb{std::move(a.vb)} {}
 
 template <class T, class A> vector<T, A> &vector<T, A>::operator=(vector &&a) {
   // clear();
@@ -127,7 +186,7 @@ template <class T, class A> void vector<T, A>::reserve(size_type newalloc) {
   // move vb to b
   std::copy(vb.elem, vb.last, b.elem);
   vb = std::move(b);
-}// release b 
+} // release b
 
 template <class T, class A> void vector<T, A>::destroy(T *b, T *e) {
   for (; b != e; ++b) {
