@@ -5,14 +5,18 @@
 #include <cstdio>
 #include <memory>
 
-template <class T> void print_vector(T &a) {
-  for (int i = 0; i < a.size(); ++i) {
+template <class T>
+void print_vector(T &a)
+{
+  for (int i = 0; i < a.size(); ++i)
+  {
     std::printf("%d ", *(a.vb.elem + i));
   }
   printf("\n");
 }
 
-int main() {
+int main()
+{
 
   vector<int> vec(5, 1);
 
@@ -23,8 +27,6 @@ int main() {
   std::swap(vec, vec2);
   print_vector(vec);
   print_vector(vec2);
-
-
 
   std::swap(vec, vec3);
   print_vector(vec);
@@ -39,7 +41,13 @@ int main() {
 
   printf("\n");
 
-
   vector<int> vec4 = {1, 2, 3, 4};
   print_vector(vec4);
+
+  //  vector<int>::Iterator it =
+  // vector<int, std::allocator<int>>::Iterator it = vec4.begin();
+  vector<int>::Iterator it = vec4.begin();
+  for(it; it != vec4.end(); ++it){
+    std::cout << *(it.current_node) << std::endl;
+  }
 }

@@ -12,7 +12,9 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
-template <class T, class A = std::allocator<T>> struct vector_base {
+template <class T, class A = std::allocator<T>>
+struct vector_base
+{
   A alloc;
   T *elem;
   T *space;
@@ -33,13 +35,16 @@ template <class T, class A = std::allocator<T>> struct vector_base {
 
 template <class T, class A>
 inline vector_base<T, A>::vector_base(vector_base &&a)
-    : alloc{a.alloc}, elem{a.elem}, space{a.space}, last{a.last} {
+    : alloc{a.alloc}, elem{a.elem}, space{a.space}, last{a.last}
+{
   a.elem = a.space = a.last = nullptr;
 }
 
 template <class T, class A>
-inline vector_base<T, A> &vector_base<T, A>::operator=(vector_base &&a) {
-  if (this != &a) {
+inline vector_base<T, A> &vector_base<T, A>::operator=(vector_base &&a)
+{
+  if (this != &a)
+  {
     // release current object's resources
     alloc.deallocate(elem, last - elem);
     alloc = a.alloc;
@@ -54,50 +59,12 @@ inline vector_base<T, A> &vector_base<T, A>::operator=(vector_base &&a) {
   return *this;
 }
 
-template <class T> struct Iterator {
-  T *current_node;
-
-  Iterator(T *p) : current_node{p} {}
-
-  Iterator &operator++() { return Iterator{current_node++}; }
-
-  Iterator operator+(int i) { return Iterator{current_node++}; }
-
-  Iterator operator--() { Iterator{current_node--}; }
-
-  Iterator operator-(int i) { Iterator{current_node--}; }
-
-  bool operator==(Iterator it){
-    if(this->current_node == it.current_node){
-      return true;
-    }
-    return false;
-  }
-
-  Iterator operator=(Iterator& it){
-    current_node = it.current_node;
-  }
-
-  Iterator(const Iterator &it) : current_node(it.current_node){
-
-  }
-
-  Iterator(const Iterator &&it) : current_node(it.current_node){
-    it.current_node = nullptr;
-  }
-
-  Iterator operator=(Iterator&& it){
-    current_node = it.current_node;
-    it.current_node = nullptr;
-  }
-
-
-};
-
-template <class T, class A = std::allocator<T>> class vector {
+template <class T, class A = std::allocator<T>>
+class vector
+{
 public:
   vector_base<T, A> vb;
-  Iterator<T> it;
+  struct Iterator;
   void destroy_elements();
   void destroy(T *b, T *e);
 
@@ -122,20 +89,91 @@ public:
   void clear() { resize(0); }
   void push_back(const T &);
 
-  Iterator<T>& begin(){
-    return Iterator<T>{this->vb.elem};
+  Iterator begin()
+  {
+    return Iterator{this->vb.elem};
   }
 
-  Iterator<T>& end(){
-    return Iterator<T>{this->vb.space};
+  Iterator end()
+  {
+    return Iterator{this->vb.space};
   }
 
+  struct Iterator
+  {
+    T *current_node;
+
+    Iterator(T *p) : current_node{p} {}
+
+    // Prefix ++ overload
+        Iterator& operator++()
+        {
+            if (current_node)
+                current_node = current_node + 1;
+            return *this;
+        }
+
+        // Postfix ++ overload
+        Iterator operator++(int)
+        {
+            Iterator iterator = *this;
+            ++*this;
+            return iterator;
+        }
+
+    Iterator operator+(int i) { return Iterator{current_node + 1}; }
+
+    Iterator operator--() { Iterator{current_node - 1}; }
+
+    Iterator operator-(int i) { Iterator{current_node - 1}; }
+
+    bool operator!=(Iterator it)
+    {
+      if (this->current_node != it.current_node)
+      {
+        return true;
+      }
+      return false;
+    }
+    bool operator==(Iterator it)
+    {
+      if (this->current_node == it.current_node)
+      {
+        return true;
+      }
+      return false;
+    }
+
+    Iterator operator=(Iterator &it)
+    {
+      current_node = it.current_node;
+      it.current_node = nullptr;
+    }
+
+    Iterator(const Iterator &it) : current_node(it.current_node)
+    {
+      
+    }
+
+    Iterator(const Iterator &&it) : current_node(it.current_node)
+    {
+      it.current_node = nullptr;
+    }
+
+    Iterator operator=(Iterator &&it)
+    {
+      current_node = it.current_node;
+      it.current_node = nullptr;
+    }
+  };
 };
 
 template <class T, class A>
 vector<T, A>::vector(std::initializer_list<T> lst)
-    : vb{std::allocator<T>(), lst.size()} {
-  for (int i = 0; i < lst.size(); ++i) {
+    : vb{std::allocator<T>(), lst.size()}
+{
+  for (int i = 0; i < lst.size(); ++i)
+  {
     vb.alloc.construct(vb.elem + i, *(lst.begin() + i));
   }
 }
@@ -143,34 +181,46 @@ vector<T, A>::vector(std::initializer_list<T> lst)
 template <class T, class A>
 vector<T, A>::vector(vector &&a) : vb{std::move(a.vb)} {}
 
-template <class T, class A> vector<T, A> &vector<T, A>::operator=(vector &&a) {
+template <class T, class A>
+vector<T, A> &vector<T, A>::operator=(vector &&a)
+{
   // clear();
-  if (this != &a) {
+  if (this != &a)
+  {
     // release current object's resources
     vb = std::move(a.vb);
   }
   return *this;
 }
 
-template <class T, class A> inline void vector<T, A>::destroy_elements() {
-  for (T *p = vb.elem; p != vb.space; ++p) {
+template <class T, class A>
+inline void vector<T, A>::destroy_elements()
+{
+  for (T *p = vb.elem; p != vb.space; ++p)
+  {
     p->~T();
   }
   vb.space = vb.elem;
 }
 
 template <class T, class A>
-vector<T, A>::vector(size_type n, const T &val, const A &a) : vb{a, n} {
+vector<T, A>::vector(size_type n, const T &val, const A &a) : vb{a, n}
+{
 
   T *p;
-  try {
+  try
+  {
     T *end = vb.elem + n;
-    for (p = vb.elem; p != end; ++p) {
+    for (p = vb.elem; p != end; ++p)
+    {
       vb.alloc.construct(p, val);
     }
     vb.last = vb.space = p;
-  } catch (...) {
-    for (T *q = vb.elem; q != p; ++q) {
+  }
+  catch (...)
+  {
+    for (T *q = vb.elem; q != p; ++q)
+    {
       vb.alloc.destroy(q);
     }
     vb.alloc.deallocate(vb.elem, n);
@@ -178,7 +228,9 @@ vector<T, A>::vector(size_type n, const T &val, const A &a) : vb{a, n} {
   }
 }
 
-template <class T, class A> void vector<T, A>::reserve(size_type newalloc) {
+template <class T, class A>
+void vector<T, A>::reserve(size_type newalloc)
+{
   if (newalloc <= capaciity())
     return;
   vector_base<T, A> b(vb.alloc, capaciity());
@@ -188,24 +240,33 @@ template <class T, class A> void vector<T, A>::reserve(size_type newalloc) {
   vb = std::move(b);
 } // release b
 
-template <class T, class A> void vector<T, A>::destroy(T *b, T *e) {
-  for (; b != e; ++b) {
+template <class T, class A>
+void vector<T, A>::destroy(T *b, T *e)
+{
+  for (; b != e; ++b)
+  {
     b->~T();
   }
 }
 template <class T, class A>
-void vector<T, A>::resize(size_type newsize, const T &val) {
+void vector<T, A>::resize(size_type newsize, const T &val)
+{
   reserve(newsize);
-  if (size() < newsize) {
+  if (size() < newsize)
+  {
     std::uninitialized_fill(vb.elem + size(), vb.elem + newsize, val);
-  } else {
+  }
+  else
+  {
     destroy(vb.elem + size(), vb.elem + newsize);
   }
 
   vb.space = vb.last = vb.elem + newsize;
 }
 
-template <class T, class A> void vector<T, A>::push_back(const T &x) {
+template <class T, class A>
+void vector<T, A>::push_back(const T &x)
+{
   if (capaciity() == size())
     reserve(size() ? 2 * size() : 8);
   vb.alloc.construct(vb.elem + size(), x);
@@ -214,7 +275,8 @@ template <class T, class A> void vector<T, A>::push_back(const T &x) {
 
 // copy assignment
 template <class T, class A>
-vector<T, A> &vector<T, A>::operator=(const vector &a) {
+vector<T, A> &vector<T, A>::operator=(const vector &a)
+{
   vector temp{a}; // copy constructor
   std::swap(*this, temp);
   return *this;
@@ -222,16 +284,22 @@ vector<T, A> &vector<T, A>::operator=(const vector &a) {
 
 // copy constructor
 template <class T, class A>
-vector<T, A>::vector(const vector &a) : vb{a.vb.alloc, a.size()} {
+vector<T, A>::vector(const vector &a) : vb{a.vb.alloc, a.size()}
+{
   T *p, *r;
-  try {
+  try
+  {
     T *end = vb.elem + a.size();
-    for (p = vb.elem, r = a.vb.elem; p != end; ++p, ++r) {
+    for (p = vb.elem, r = a.vb.elem; p != end; ++p, ++r)
+    {
       vb.alloc.construct(p, *r);
     }
     vb.last = vb.space = p;
-  } catch (...) {
-    for (T *q = vb.elem; q != p; ++q) {
+  }
+  catch (...)
+  {
+    for (T *q = vb.elem; q != p; ++q)
+    {
       vb.alloc.destroy(q);
     }
     vb.alloc.deallocate(vb.elem, a.size());
